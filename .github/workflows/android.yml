@@ -4,38 +4,57 @@ on:
   pull_request:
   push:
     branches:
-    - 'main'
-    - '7.**'
+      - 'main'
+      - '7.**'
 
 permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
   build:
-
     runs-on: ubuntu-latest-8-cores
 
     steps:
-    - uses: actions/checkout@v4
-      with:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
           submodules: true
 
-    - name: set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: 17
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
 
-    - name: Validate Gradle Wrapper
-      uses: gradle/wrapper-validation-action@v3
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v3
 
-    - name: Build with Gradle
-      run: ./gradlew qa
+      # Lint check
+      - name: Run Lint
+        run: ./gradlew lint
 
-    - name: Archive reports for failed build
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: reports
-        path: '*/build/reports'
+      # Run unit tests
+      - name: Run Unit Tests
+        run: ./gradlew test
+
+      # Build debug & release APKs
+      - name: Build APKs
+        run: ./gradlew assembleDebug assembleRelease
+
+      # Upload APKs as artifact
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-apks
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+
+      # Archive reports if build fails
+      - name: Archive reports for failed build
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: '*/build/reports'

@@ -9,12 +9,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read # to fetch code (actions/checkout)
+  contents: read
 
 jobs:
   build:
     name: Build APKs
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     outputs:
       short_sha: ${{ steps.set_sha.outputs.short_sha }}
 
@@ -49,16 +49,15 @@ jobs:
 
       - name: Rename Release APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/app-release-${{ steps.set_sha.outputs.short_sha }}.apk
+          RELEASE_APK=$(find app/build/outputs/apk/universal/release -name "*.apk" | head -n 1)
+          cp "$RELEASE_APK" "app/build/outputs/apk/universal/release/app-universal-release-${{ steps.set_sha.outputs.short_sha }}.apk"
 
       - name: Upload APKs as artifact
         uses: actions/upload-artifact@v4
         with:
           name: signal-apks-${{ steps.set_sha.outputs.short_sha }}
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/app-release-${{ steps.set_sha.outputs.short_sha }}.apk
+            app/build/outputs/apk/**/*.apk
 
       - name: Archive reports if build fails
         if: ${{ failure() }}
@@ -99,7 +98,7 @@ jobs:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
-          APK_PATH: ./downloaded-apk/app-release-${{ needs.build.outputs.short_sha }}.apk
+          APK_PATH: $(find ./downloaded-apk -name "app-universal-release-*.apk" | head -n 1)
         run: |
           python ./.github/workflows/deploy_artifacts.py
         continue-on-error: true
